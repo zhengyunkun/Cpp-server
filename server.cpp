@@ -12,6 +12,8 @@
 // 绑定套接字到一个IP地址和接口上
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
+#include "util.h"
 
 int main()
 {
@@ -21,6 +23,7 @@ int main()
      *@SOCK_STREAM: TCP (Stream socket) 表示流格式，适用于TCP协议
      *@0： 传输协议，根据前面的两个参数自动推导协议类型，设置为IPPROTO_TCP或者IPPTOTO_UDP，分别表示TCP和UDP，TCP是面向连接的协议，UDP无需连接
      */
+    errIf(sockfd == -1, "socket create failed...");
 
     struct sockaddr_in server_addr;
     // 服务器地址结构体, socketaddr_in用于存储ipv4地址信息
@@ -29,10 +32,9 @@ int main()
     server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     server_addr.sin_port = htons(8080);
 
-    bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    errIf((bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1), "socket bind failed...");
     // Give the socket FD the local address ADDR
-
-    listen(sockfd, SOMAXCONN);
+    errIf((listen(sockfd, SOMAXCONN) == -1), "socket listen failed...");
     // 监听这个socket端口，SOMAXCONN表示最大连接数
 
     // 接受一个客户端连接
@@ -40,7 +42,39 @@ int main()
     socklen_t client_addr_len = sizeof(client_addr); // accept需要写入客户端socket长度
     bzero(&client_addr, client_addr_len);
     int client_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &client_addr_len); // 客户端socket的长度
+    errIf(client_sockfd == -1, "socket accept failed...");
 
     // 接受完请求后执行
     printf("Client fd: %d, Client connected: %s, Port: %d...\n", client_sockfd, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+
+    // 当我们建立socket连接之后，就可以使用<unistd.h>中的read和write进行网络接口的数据读写操作
+    // read write
+    while(true)
+    {
+        char buf[1024];
+        // Define buffer
+        bzero(&buf, sizeof(buf)); // 清空缓冲区
+        ssize_t readBytes = read(client_sockfd, buf, sizeof(buf));
+        // 从客户端socket读到缓冲区
+        // 客户端通过accept函数获得的
+
+        if (readBytes > 0)
+        {
+            printf("Message from client fd %d: %s\n", client_sockfd, buf);
+            write(client_sockfd, buf, sizeof(buf));
+            // 将相同的数据写入客户端
+        }
+        else if (readBytes == 0)
+        {
+            printf("Client fd %d disconnected...\n", client_sockfd);
+            close(client_sockfd);
+            break;
+        } else if (readBytes == -1)
+        {
+            close(client_sockfd);
+            errIf(true, "socket read failed...");
+        }
+    }
+    close(sockfd);
+    return 0;
 }
