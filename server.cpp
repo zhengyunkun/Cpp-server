@@ -39,7 +39,7 @@ int main()
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(client_addr); // accept需要写入客户端socket长度
     bzero(&client_addr, client_addr_len);
-    int client_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &client_addr_len);
+    int client_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &client_addr_len); // 客户端socket的长度
 
     // 接受完请求后执行
     printf("Client fd: %d, Client connected: %s, Port: %d...\n", client_sockfd, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
