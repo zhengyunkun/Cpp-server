@@ -3,7 +3,7 @@
  * @Date: 2024-8-1 00:48:45
  * @LastEditTime: 2024-8-21 15:00:00
  * @LastEditors: Larry Kinn
- * @Description: Start up
+ * @Description: Linux Server Start up
  */
 
 #include <sys/socket.h>
