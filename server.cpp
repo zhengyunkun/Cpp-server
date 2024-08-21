@@ -1,7 +1,7 @@
 /* 
  * @Author: Zheng Yunkun
  * @Date: 2024-8-1 00:48:45
- * @LastEditTime: 2024-8-20 19:54:32
+ * @LastEditTime: 2024-8-21 15:00:00
  * @LastEditors: Larry Kinn
  * @Description: Start up
  */
@@ -13,7 +13,19 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/epoll.h>
+#include <fcntl.h>
+#include <errno.h>
 #include "util.h"
+
+#define MAX_EVENTS 1024
+#define READ_BUFFER 1024
+
+void setnonblocking(int fd)
+{
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+    // 设置非阻塞
+}
 
 int main()
 {
@@ -37,42 +49,79 @@ int main()
     errIf((listen(sockfd, SOMAXCONN) == -1), "socket listen failed...");
     // 监听这个socket端口，SOMAXCONN表示最大连接数
 
-    // 接受一个客户端连接
-    struct sockaddr_in client_addr;
-    socklen_t client_addr_len = sizeof(client_addr); // accept需要写入客户端socket长度
-    bzero(&client_addr, client_addr_len);
-    int client_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &client_addr_len); // 客户端socket的长度
-    errIf(client_sockfd == -1, "socket accept failed...");
+    int epfd = epoll_create1(0);
+    errIf(epfd == -1, "epoll create failed...");
 
-    // 接受完请求后执行
-    printf("Client fd: %d, Client connected: %s, Port: %d...\n", client_sockfd, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+    struct epoll_event events[MAX_EVENTS], ev;
+    bzero(&ev, sizeof(ev));
+    bzero(events, sizeof(events));
+
+    ev.data.fd = sockfd;
+    ev.events = EPOLLIN | EPOLLET;
+    setnonblocking(sockfd);
+    epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
+
 
     // 当我们建立socket连接之后，就可以使用<unistd.h>中的read和write进行网络接口的数据读写操作
     // read write
     while(true)
     {
-        char buf[1024];
-        // Define buffer
-        bzero(&buf, sizeof(buf)); // 清空缓冲区
-        ssize_t readBytes = read(client_sockfd, buf, sizeof(buf));
-        // 从客户端socket读到缓冲区
-        // 客户端通过accept函数获得的
+        int nfds = epoll_wait(epfd, events, MAX_EVENTS, -1);
+        errIf(nfds == -1, "epoll wait failed...");
+        for (int i = 0; i < nfds; i ++ )
+        {
+            if (events[i].data.fd == sockfd)
+            {
+                struct sockaddr_in client_addr;
+                bzero(&client_addr, sizeof(client_addr));
+                socklen_t client_addr_len = sizeof(client_addr);
 
-        if (readBytes > 0)
-        {
-            printf("Message from client fd %d: %s\n", client_sockfd, buf);
-            write(client_sockfd, buf, sizeof(buf));
-            // 将相同的数据写入客户端
-        }
-        else if (readBytes == 0)
-        {
-            printf("Client fd %d disconnected...\n", client_sockfd);
-            close(client_sockfd);
-            break;
-        } else if (readBytes == -1)
-        {
-            close(client_sockfd);
-            errIf(true, "socket read failed...");
+                int client_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &client_addr_len);
+                errIf(client_sockfd == -1, "socket accept failed...");
+                printf("Client id: %d, Client connected: %s, Port: %d\n", client_sockfd, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+
+                bzero(&ev, sizeof(ev));
+                ev.data.fd = client_sockfd;
+                ev.events = EPOLLIN | EPOLLET;
+                setnonblocking(client_sockfd);
+                epoll_ctl(epfd, EPOLL_CTL_ADD, client_sockfd, &ev);
+            } 
+            else if (events[i].events & EPOLLIN) //可读事件
+            {
+                char buf[READ_BUFFER];
+                while (true)
+                {
+                    // 使用非阻塞IO，读取客户端buffer，一次读取buf大小数据直到全部读取完毕
+                    bzero(buf, sizeof(buf));
+                    ssize_t readBytes = read(events[i].data.fd, buf, sizeof(buf));
+                    if (readBytes > 0)
+                    {
+                        printf("Message from client fd %d: %s\n", events[i].data.fd, buf);
+                        write(events[i].data.fd, buf, strlen(buf));
+                    }
+                    else if (readBytes == -1 && errno == EINTR)
+                    {
+                        printf("Continue reading...\n");
+                        continue;
+                    }
+                    else if (readBytes == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK)))
+                    //非阻塞IO，表示数据全部读取完毕
+                    {
+                        printf("Finish reading, errno: %d\n", errno);
+                        break;
+                    }
+                    else if (readBytes == 0)
+                    {
+                        printf("EOF, client fd %d disconnected...\n", events[i].data.fd);
+                        close(events[i].data.fd);
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                printf("Unknown event...\n");
+            }
         }
     }
     close(sockfd);
