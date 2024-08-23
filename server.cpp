@@ -67,7 +67,7 @@ int main()
             }
             else
             {
-                handleReadEvent(chfd);
+                printf();
             }
         }
     }
