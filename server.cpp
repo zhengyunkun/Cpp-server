@@ -39,7 +39,7 @@ int main()
     server_sock->listen();
 
     Epoll* ep = new Epoll();
-    server_sock->setNonbinding();
+    server_sock->setNonBlocking();
     ep->addFd(server_sock->getFd(), EPOLLIN | EPOLLET);
 
     while (true)
@@ -54,7 +54,7 @@ int main()
                 InetAddress* client_addr = new InetAddress();
                 Socket* client_sock = new Socket(server_sock->accept(client_addr));
                 printf("Client id: %d, Client connected: %s, Port: %d\n", client_sock->getFd(), inet_ntoa(client_addr->addr.sin_addr), ntohs(client_addr->addr.sin_port));
-                client_sock->setNonbinding();
+                client_sock->setNonBlocking();
                 ep->addFd(client_sock->getFd(), EPOLLIN | EPOLLET);
             } 
             else if (events[i].events & EPOLLIN)
