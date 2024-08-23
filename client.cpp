@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include "util.h"
 
+#define BUFFER_SIZE 1024
+
 int main()
 {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -20,7 +22,7 @@ int main()
 
     while (true)
     {
-        char buf[1024];
+        char buf[BUFFER_SIZE];
         bzero(&buf, sizeof(buf));
         scanf("%s", buf);
         ssize_t writeBytes = write(sockfd, buf, sizeof(buf));
