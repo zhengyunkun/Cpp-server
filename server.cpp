@@ -90,6 +90,7 @@ int main()
             else if (events[i].events & EPOLLIN) //是否是可读事件，有数据从客户端发送到服务器
             {
                 char buf[READ_BUFFER];
+                bool dateRead = false;
                 while (true)
                 {
                     bzero(buf, sizeof(buf));
@@ -101,6 +102,7 @@ int main()
                         // 如果接受到了数据就把数据重新发送给客户端
                         printf("Message from client fd %d: %s\n", events[i].data.fd, buf);
                         write(events[i].data.fd, buf, strlen(buf));
+                        dateRead = true;
                     }
                     else if (readBytes == -1 && errno == EINTR) // 如果读取的过程中被信号中断，进入这里的处理逻辑
                     {
@@ -110,7 +112,10 @@ int main()
                     else if (readBytes == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK)))
                     // 没有读取到数据，EADAIN表示操作要重试，EWOULDBLOCK表示操作不能立即完成，需要等待
                     {
-                        printf("Finish reading, errno: %d\n", errno);
+                        if (!dateRead)
+                        {
+                            printf("Finish reading, errno: %d\n", errno);
+                        }
                         break;
                     }
                     else if (readBytes == 0)
