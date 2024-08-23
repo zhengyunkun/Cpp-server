@@ -1,3 +1,3 @@
-## A Simple Stupid Server in C++
+# A Simple Stupid Server in C++
 
-### with simple client and server to use
+## with simple client and server to use

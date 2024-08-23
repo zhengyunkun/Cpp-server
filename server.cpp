@@ -23,7 +23,8 @@
 
 void setnonblocking(int fd)
 {
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+    // fcntl获取当前文件状态标志
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK); // 添加非阻塞标志
     // 设置非阻塞
 }
 
@@ -49,7 +50,7 @@ int main()
     errIf((listen(sockfd, SOMAXCONN) == -1), "socket listen failed...");
     // 监听这个socket端口，SOMAXCONN表示最大连接数
 
-    int epfd = epoll_create1(0);
+    int epfd = epoll_create1(0); // epoll实例的文件描述符epfd
     errIf(epfd == -1, "epoll create failed...");
 
     struct epoll_event events[MAX_EVENTS], ev;
@@ -57,20 +58,19 @@ int main()
     bzero(events, sizeof(events));
 
     ev.data.fd = sockfd;
-    ev.events = EPOLLIN | EPOLLET;
-    setnonblocking(sockfd);
+    ev.events = EPOLLIN | EPOLLET; // 当有数据可读时触发事件，边缘触发模式
+    setnonblocking(sockfd); // 设置非阻塞，如果进行IO操作时不能立即完成，会返回
     epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
 
-
-    // 当我们建立socket连接之后，就可以使用<unistd.h>中的read和write进行网络接口的数据读写操作
-    // read write
     while(true)
     {
-        int nfds = epoll_wait(epfd, events, MAX_EVENTS, -1);
+        int nfds = epoll_wait(epfd, events, MAX_EVENTS, -1); 
+        // 把发生的事件放入events数组中，-1表示一直等待
+        // 返回发生事件的文件描述符数量
         errIf(nfds == -1, "epoll wait failed...");
         for (int i = 0; i < nfds; i ++ )
         {
-            if (events[i].data.fd == sockfd)
+            if (events[i].data.fd == sockfd)  // 监听的sockfd上有新的连接请求
             {
                 struct sockaddr_in client_addr;
                 bzero(&client_addr, sizeof(client_addr));
@@ -80,32 +80,35 @@ int main()
                 errIf(client_sockfd == -1, "socket accept failed...");
                 printf("Client id: %d, Client connected: %s, Port: %d\n", client_sockfd, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
+                // 重新设置ev，将新的client_sockfd加入epoll监听
                 bzero(&ev, sizeof(ev));
                 ev.data.fd = client_sockfd;
-                ev.events = EPOLLIN | EPOLLET;
+                ev.events = EPOLLIN | EPOLLET; // 客户端有数据发送到本地服务器，套接字监听到可读事件
                 setnonblocking(client_sockfd);
                 epoll_ctl(epfd, EPOLL_CTL_ADD, client_sockfd, &ev);
-            } 
-            else if (events[i].events & EPOLLIN) //可读事件
+            }
+            else if (events[i].events & EPOLLIN) //是否是可读事件，有数据从客户端发送到服务器
             {
                 char buf[READ_BUFFER];
                 while (true)
                 {
-                    // 使用非阻塞IO，读取客户端buffer，一次读取buf大小数据直到全部读取完毕
                     bzero(buf, sizeof(buf));
                     ssize_t readBytes = read(events[i].data.fd, buf, sizeof(buf));
+                    // 内核为每个fd分配内核缓冲区，read从内核缓冲区读取数据到buf中
+                    // read函数会阻塞，除非有数据可读或者客户端断开连接
                     if (readBytes > 0)
                     {
+                        // 如果接受到了数据就把数据重新发送给客户端
                         printf("Message from client fd %d: %s\n", events[i].data.fd, buf);
                         write(events[i].data.fd, buf, strlen(buf));
                     }
-                    else if (readBytes == -1 && errno == EINTR)
+                    else if (readBytes == -1 && errno == EINTR) // 如果读取的过程中被信号中断，进入这里的处理逻辑
                     {
                         printf("Continue reading...\n");
                         continue;
                     }
                     else if (readBytes == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK)))
-                    //非阻塞IO，表示数据全部读取完毕
+                    // 没有读取到数据，EADAIN表示操作要重试，EWOULDBLOCK表示操作不能立即完成，需要等待
                     {
                         printf("Finish reading, errno: %d\n", errno);
                         break;
