@@ -1,4 +1,5 @@
 #include "Epoll.h"
+#include "Channel.h"
 #include "util.h"
 #include <unistd.h>
 #include <string.h>
@@ -33,15 +34,35 @@ void Epoll::addFd(int fd, uint32_t op)
 }
 
 // 返回epoll中触发的事件
-std::vector<epoll_event> Epoll::poll(int timeout)
+std::vector<Channel*> Epoll::poll(int timeout)
 {
-    std::vector<epoll_event> activeEvents;
+    std::vector<Channel*> activeChannels;
     int nfds = epoll_wait(epfd, events, MAX_EVENTS, timeout);
     errIf(nfds == -1, "Epoll wait failed...");
-
+    
     for (int i = 0; i < nfds; i ++ )
     {
-        activeEvents.push_back(events[i]);
+        Channel* ch = (Channel*)events[i].data.ptr;
+        ch->setRevents(events[i].events);
+        activeChannels.push_back(ch);
     }
-    return activeEvents;
+    return activeChannels;
+}
+
+
+void Epoll::updateChannel(Channel* channel)
+{
+    int fd = channel->getFd();
+    struct epoll_event ev;
+    bzero(&ev, sizeof(ev));
+
+    ev.data.ptr = channel;
+    ev.events = channel->getEvents();
+
+    if (!channel->getInEpoll())
+    {
+        errIf(epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == -1, "Epoll add failed...");
+        channel->setInEpoll();
+    }
+    else errIf(epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev) == -1, "Epoll mod failed...");
 }

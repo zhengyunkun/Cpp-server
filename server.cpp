@@ -15,15 +15,11 @@
 #include "util.h"
 #include "Epoll.h"
 #include "Socket.h"
+#include "Channel.h"
 #include "InetAddress.h"
 
 #define MAX_EVENTS 1024
 #define READ_BUFFER 1024
-
-void setNonblocking(int fd)
-{
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
-}
 
 void handleReadEvent(int);
 
@@ -37,33 +33,29 @@ int main()
     server_sock->setNonBlocking();
 
     Epoll* ep = new Epoll();
-    ep->addFd(server_sock->getFd(), EPOLLIN | EPOLLET);
+    // ep->addFd(server_sock->getFd(), EPOLLIN | EPOLLET);
+    Channel* serverChannel = new Channel(ep, server_sock->getFd());
+    serverChannel->enableReading();
 
     while (true)
     {
-        std::vector<epoll_event> events = ep->poll();
-        int nfds = events.size();
+        std::vector<Channel*> activeChannels = ep->poll();
+        int nfds = activeChannels.size();
 
         for (int i = 0; i < nfds; i ++ )
         {
-            if (events[i].data.fd == server_sock->getFd())
+            int chfd = activeChannels[i]->getFd();
+            if (chfd == server_sock->getFd())
             {
                 InetAddress* client_addr = new InetAddress();
                 int client_fd = server_sock->accept(client_addr);
                 Socket* client_sock = new Socket(client_fd);
-                client_sock->setNonBlocking();
 
-                printf("Client id: %d, Client connected: %s, Port: %d\n", client_sock->getFd(), inet_ntoa(client_addr->addr.sin_addr), ntohs(client_addr->addr.sin_port));
-                ep->addFd(client_sock->getFd(), EPOLLIN | EPOLLET);
-            }
-            else if (events[i].events & EPOLLIN)
-            {
-                // 可读事件发生
-                handleReadEvent(events[i].data.fd);
+                printf();
             }
             else
             {
-                printf("Unknown event...\n");
+                handleReadEvent(chfd);
             }
         }
     }
@@ -77,6 +69,7 @@ int main()
 void handleReadEvent(int sockfd)
 {
     char buf[READ_BUFFER];
+    bool dataRead = false;
     while (true)
     {
         bzero(&buf, sizeof(buf));
@@ -85,6 +78,7 @@ void handleReadEvent(int sockfd)
         {
             printf("Message from client fd %d: %s\n", sockfd, buf);
             write(sockfd, buf, sizeof(buf));
+            bool dataRead = true;
         }
         else if (readBytes == -1 && errno == EINTR) // 被外部信号中断，继续读取
         {
@@ -93,7 +87,7 @@ void handleReadEvent(int sockfd)
         }
         else if (readBytes == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK)))
         {
-            printf("Finish reading, errno: %d\n", errno);
+            if (!dataRead) printf("Finish reading, errno: %d\n", errno);
             break;
         }
         else if (readBytes == 0)
