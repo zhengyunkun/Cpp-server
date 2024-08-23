@@ -50,8 +50,20 @@ int main()
                 InetAddress* client_addr = new InetAddress();
                 int client_fd = server_sock->accept(client_addr);
                 Socket* client_sock = new Socket(client_fd);
+                client_sock->setNonBlocking();
 
-                printf();
+                char* clientIp = inet_ntoa(client_addr->addr.sin_addr);
+                int clientPort = ntohs(client_addr->addr.sin_port);
+                printf("Client id: %d, Client connected: %s, Port: %d\n", 
+                        client_sock->getFd(), clientIp, clientPort);
+                
+                // 引入Channel类，将client_sock的fd和epoll进行绑定，封装部分epoll的操作
+                Channel* clientChannel = new Channel(ep, client_sock->getFd());
+                clientChannel->enableReading();
+            }
+            else if (activeChannels[i]->getRevents() & EPOLLIN)
+            {
+                handleReadEvent(chfd);
             }
             else
             {
