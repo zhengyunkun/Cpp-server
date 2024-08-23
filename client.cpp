@@ -3,7 +3,7 @@
 #include <string.h>
 #include <iostream>
 #include <unistd.h>
-#include "util.h"
+#include "src/util.h"
 
 int main()
 {
