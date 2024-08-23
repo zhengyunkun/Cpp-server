@@ -87,7 +87,7 @@ void handleReadEvent(int sockfd)
         {
             printf("Message from client fd %d: %s\n", sockfd, buf);
             write(sockfd, buf, sizeof(buf));
-            bool dataRead = true;
+            dataRead = true;
         }
         else if (readBytes == -1 && errno == EINTR) // 被外部信号中断，继续读取
         {
