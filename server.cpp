@@ -77,6 +77,7 @@ int main()
 void handleReadEvent(int sockfd)
 {
     char buf[READ_BUFFER];
+    bool dataRead = false;
     while (true)
     {
         bzero(&buf, sizeof(buf));
@@ -85,6 +86,7 @@ void handleReadEvent(int sockfd)
         {
             printf("Message from client fd %d: %s\n", sockfd, buf);
             write(sockfd, buf, sizeof(buf));
+            dataRead = true;
         }
         else if (readBytes == -1 && errno == EINTR) // 被外部信号中断，继续读取
         {
@@ -93,7 +95,7 @@ void handleReadEvent(int sockfd)
         }
         else if (readBytes == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK)))
         {
-            printf("Finish reading, errno: %d\n", errno);
+            if (!dataRead) printf("Finish reading, errno: %d\n", errno);
             break;
         }
         else if (readBytes == 0)
