@@ -65,10 +65,7 @@ int main()
             {
                 handleReadEvent(chfd);
             }
-            else
-            {
-                printf();
-            }
+            else printf("Unknown event...\n");
         }
     }
     
