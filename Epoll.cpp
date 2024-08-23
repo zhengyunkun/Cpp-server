@@ -44,13 +44,13 @@ std::vector<Channel*> Epoll::poll(int timeout)
     {
         Channel* ch = (Channel*)events[i].data.ptr;
         //
-        ch->setRevents(events[i].events);
+        ch->setRevents(events[i].events); // 设置Channel的revents
         activeChannels.push_back(ch);
     }
     return activeChannels;
 }
 
-
+// 把Channel的fd和events更新到epoll中
 void Epoll::updateChannel(Channel* channel)
 {
     int fd = channel->getFd();
@@ -58,7 +58,7 @@ void Epoll::updateChannel(Channel* channel)
     bzero(&ev, sizeof(ev));
 
     ev.data.ptr = channel;
-    ev.events = channel->getEvents();
+    ev.events = channel->getEvents(); // 获取Channel的events
 
     if (!channel->getInEpoll())
     {

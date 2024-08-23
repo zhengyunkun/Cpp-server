@@ -45,7 +45,7 @@ int main()
         for (int i = 0; i < nfds; i ++ )
         {
             int chfd = activeChannels[i]->getFd();
-            if (chfd == server_sock->getFd())
+            if (chfd == server_sock->getFd()) // 有新的连接
             {
                 InetAddress* client_addr = new InetAddress();
                 int client_fd = server_sock->accept(client_addr);
