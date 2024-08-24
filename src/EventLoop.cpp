@@ -21,7 +21,8 @@ void EventLoop::loop()
    {
         std::vector<Channel*> chs;
         chs = ep->poll(); // 从epoll中获取活跃的Channel
-        for (auto t = chs.begin(); t != chs.end(); t ++ ) (*t)->handleEvent();
+        for (auto t = chs.begin(); t != chs.end(); t ++ ) (*t)->handleEvent();  
+        // 两种事件，一种是新连接，一种是连接后客户端数据到来，在具体Channel创建时区分
    }
 }
 

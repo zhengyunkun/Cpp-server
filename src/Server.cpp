@@ -2,6 +2,7 @@
 #include "Socket.h"
 #include "InetAddress.h"
 #include "Channel.h"
+#include "Acceptor.h"
 #include <functional>
 #include <string.h>
 #include <unistd.h>
@@ -10,23 +11,16 @@
 
 #define READ_BUFFER 1024
 
-Server::Server(EventLoop* _loop) : loop(_loop)
+Server::Server(EventLoop* _loop) : loop(_loop), acceptor(nullptr)
 {
-    Socket* server_sock = new Socket();
-    InetAddress* server_addr = new InetAddress("127.0.0.1", 8080);
-    server_sock->bind(server_addr);
-    server_sock->listen();
-    server_sock->setNonBlocking();
-
-    Channel* serverChannel = new Channel(loop, server_sock->getFd());
-    std::function<void()> cb = std::bind(&Server::newConnection, this, server_sock);
-    // 将Server类的newConnection函数绑定到当前对象this和server_sock上
-    serverChannel->setCallback(cb);
-    serverChannel->enableReading();
+    acceptor = new Acceptor(loop);
+    std::function<void(Socket*)> cb = std::bind(&Server::newConnection, this, std::placeholders::_1);
+    acceptor->setNewConnectionCallback(cb);
 }
 
 Server::~Server()
 {
+    delete acceptor;
 }
 
 // 针对客户端的读事件处理函数
