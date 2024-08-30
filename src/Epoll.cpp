@@ -24,15 +24,6 @@ Epoll::~Epoll()
     delete[] events;
 }
 
-void Epoll::addFd(int fd, uint32_t op)
-{
-    struct epoll_event ev;
-    bzero(&ev, sizeof(ev));
-    ev.events = op;
-    ev.data.fd = fd;
-    errIf(epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == -1, "Epoll add fd failed...");
-}
-
 // 返回epoll中触发的事件
 std::vector<Channel*> Epoll::poll(int timeout)
 {
@@ -43,7 +34,6 @@ std::vector<Channel*> Epoll::poll(int timeout)
     for (int i = 0; i < nfds; i ++ )
     {
         Channel* ch = (Channel*)events[i].data.ptr;
-        //
         ch->setRevents(events[i].events);
         activeChannels.push_back(ch);
     }

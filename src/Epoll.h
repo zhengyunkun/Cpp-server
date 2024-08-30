@@ -14,8 +14,6 @@ class Epoll
         Epoll();
         ~Epoll();
 
-        void addFd(int fd, uint32_t op);
-        // std::vector<epoll_event> poll(int timeout = -1);
         // timeout = -1表示一直等待
         std::vector<Channel*> poll(int timeout = -1);
         void updateChannel(Channel*);
