@@ -18,7 +18,8 @@ Channel::~Channel()
 
 void Channel::handleEvent()
 {
-    callback();
+    loop->addThread(callback);  // 通过线程池处理事件
+    // callback();
 }
 
 void Channel::enableReading()
