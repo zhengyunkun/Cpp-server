@@ -37,7 +37,7 @@ void Acceptor::acceptConnection()
     printf("Client id: %d, Client connected: %s, Port: %d\n", 
             client_sock->getFd(), clientIp, clientPort);
     client_sock->setNonBlocking();
-    newConnectionCallback(server_sock);
+    newConnectionCallback(client_sock);
     delete client_addr;
 }
 

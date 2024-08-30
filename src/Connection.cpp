@@ -25,7 +25,7 @@ Connection::~Connection()
 void Connection::echo(int sockfd)
 {
     char buf[READ_BUFFER];
-    bool dateRead = false;
+    bool dataRead = false;
     while (true)
     {
         bzero(&buf, READ_BUFFER);
@@ -34,7 +34,7 @@ void Connection::echo(int sockfd)
         {
             printf("Message from client fd %d: %s\n", sockfd, buf);
             write(sockfd, buf, READ_BUFFER);
-            dateRead = true;
+            dataRead = true;
         }
         else if (readBytes == -1 && errno == EINTR)
         {
@@ -43,7 +43,7 @@ void Connection::echo(int sockfd)
         }
         else if (readBytes == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK)))
         {
-            if (!dateRead) printf("Finish reading, errno: %d\n", errno);
+            if (!dataRead) printf("Finish reading, errno: %d\n", errno);
             break;
         }
         else if (readBytes == 0)
