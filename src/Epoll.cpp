@@ -6,7 +6,7 @@
 
 #define MAX_EVENTS 1024
 
-Epoll::Epoll()
+Epoll::Epoll() : epfd(-1), events(nullptr)
 {
     epfd = epoll_create1(0);
     errIf(epfd == -1, "Epoll create failed...");
@@ -34,7 +34,7 @@ std::vector<Channel*> Epoll::poll(int timeout)
     for (int i = 0; i < nfds; i ++ )
     {
         Channel* ch = (Channel*)events[i].data.ptr;
-        ch->setRevents(events[i].events);
+        ch->setReady(events[i].events);
         activeChannels.push_back(ch);
     }
     return activeChannels;
@@ -56,4 +56,11 @@ void Epoll::updateChannel(Channel* channel)
         channel->setInEpoll();
     }
     else errIf(epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev) == -1, "Epoll mod failed...");
+}
+
+void Epoll::deleteChannel(Channel* channel)
+{
+    int fd = channel->getFd();
+    errIf(epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr) == -1, "Epoll delete failed...");
+    channel->setInEpoll(false);
 }

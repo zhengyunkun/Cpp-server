@@ -17,4 +17,5 @@ class Epoll
         // timeout = -1表示一直等待
         std::vector<Channel*> poll(int timeout = -1);
         void updateChannel(Channel*);
+        void deleteChannel(Channel*);
 };

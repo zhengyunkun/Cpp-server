@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>   // 提供了控制文件描述符的函数
 #include <sys/socket.h>
+#include <strings.h>
 
 Socket::Socket() : fd(-1)
 {
@@ -22,12 +23,14 @@ Socket::~Socket()
     if (fd != -1)
     {
         close(fd);
+        fd = -1;
     }
 }
 
-void Socket::bind(InetAddress* server_addr)
+void Socket::bind(InetAddress* _addr)
 {
-    errIf(::bind(fd, (sockaddr*)&server_addr->addr, server_addr->addr_len) == -1, "Socket bind failed...");
+    struct sockaddr_in addr = _addr->getAddr();
+    errIf(::bind(fd, (sockaddr*)&addr, sizeof(addr)) == -1, "Socket bind failed...");
 }
 
 // ::bind表示调用全局命名空间的bind函数，而不是Socket类的bind函数
@@ -43,11 +46,21 @@ void Socket::setNonBlocking()
     fcntl(fd, F_SETFL, (fcntl(fd, F_GETFL) | O_NONBLOCK));
 }
 
-int Socket::accept(InetAddress* client_addr)
+int Socket::accept(InetAddress* _addr)
 {
-    int client_fd = ::accept(fd, (sockaddr*)&client_addr->addr, &client_addr->addr_len);
-    errIf(client_fd == -1, "Socket accept failed...");
-    return client_fd;
+    struct sockaddr_in addr;
+    bzero(&addr, sizeof(addr));
+    socklen_t addr_len = sizeof(addr);
+    int client_sockfd = ::accept(fd, (sockaddr*)&addr, &addr_len);
+    errIf(client_sockfd == -1, "Socket accept failed...");
+    _addr->setInetAddr(addr);
+    return client_sockfd;
+}
+
+void Socket::connect(InetAddress* _addr)
+{
+    struct sockaddr_in addr = _addr->getAddr();
+    errIf(::connect(fd, (sockaddr*)&addr, sizeof(addr)) == -1, "Socket connect failed...");
 }
 
 int Socket::getFd()

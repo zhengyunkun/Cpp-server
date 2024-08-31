@@ -18,6 +18,7 @@ class Socket
         void setNonBlocking();
 
         int accept(InetAddress*);
+        void connect(InetAddress*);
 
         int getFd();
 };
