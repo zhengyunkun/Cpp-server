@@ -2,10 +2,9 @@
 #include "EventLoop.h"
 #include <functional>
 #include <unistd.h>
+#include <sys/epoll.h>
 
-Channel::Channel(EventLoop* _loop, int _fd) : loop(_loop), fd(_fd), events(0), ready(0), inEpoll(false), useThreadPool(true)
-{
-}
+Channel::Channel(EventLoop* _loop, int _fd) : loop(_loop), fd(_fd), events(0), ready(0), inEpoll(false) {}
 
 Channel::~Channel()
 {
@@ -18,18 +17,8 @@ Channel::~Channel()
 
 void Channel::handleEvent()
 {
-    // loop->addThread(callback);  // 通过线程池处理事件
-    // callback();
-    if (ready & (EPOLLIN | EPOLLPRI))
-    {
-        if (useThreadPool) loop->addThread(readcallback);
-        else readcallback();
-    }
-    if (ready & (EPOLLOUT))
-    {
-        if (useThreadPool) loop->addThread(writecallback);
-        else writecallback();
-    }
+    if (ready & (EPOLLIN | EPOLLPRI)) readcallback();
+    if (ready & (EPOLLOUT)) writecallback();
 }
 
 void Channel::enableReading()
@@ -77,9 +66,4 @@ void Channel::setReady(uint32_t _ev)
 void Channel::setReadCallback(std::function<void()> _cb)
 {
     readcallback = _cb;
-}
-
-void Channel::setUseThreadPool(bool use)
-{
-    useThreadPool = use;
 }

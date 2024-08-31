@@ -1,6 +1,5 @@
 #include "Acceptor.h"
 #include "Socket.h"
-#include "InetAddress.h"
 #include "Channel.h"
 #include <stdio.h>
 
@@ -11,14 +10,14 @@ Acceptor::Acceptor(EventLoop* _loop) : loop(_loop), server_sock(nullptr), accept
     server_sock->bind(server_addr);
     server_sock->listen();
     // server_sock->setNonBlocking();
-    // 不需要设置非阻塞，因为accept函数会自动设置为非阻塞
+    // accpetor使用阻塞模式比较好，因为acceptor只负责接受连接，不负责读写数据
 
     acceptChannel = new Channel(loop, server_sock->getFd());
     std::function<void()> cb = std::bind(&Acceptor::acceptConnection, this);    // this 表示是当前成员的成员函数
 
     acceptChannel->setReadCallback(cb);
     acceptChannel->enableReading();
-    acceptChannel->setUseThreadPool(false);
+    // acceptChannel->setUseThreadPool(false);
     delete server_addr;
 }
 

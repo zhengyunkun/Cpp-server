@@ -10,14 +10,13 @@
 
 #define READ_BUFFER 1024
 
-Connection::Connection(EventLoop* _loop, Socket* _sock) : loop(_loop), sock(_sock), channel(nullptr), inBuffer(new std::string()), readBuffer(nullptr)
+Connection::Connection(EventLoop* _loop, Socket* _sock) : loop(_loop), sock(_sock), channel(nullptr), readBuffer(nullptr)
 {
     channel = new Channel(loop, sock->getFd());
     channel->enableReading();
     channel->useET();
     std::function<void()> cb = std::bind(&Connection::echo, this, sock->getFd());
     channel->setReadCallback(cb);
-    channel->setUseThreadPool(true);
     readBuffer = new Buffer();
 }
 
@@ -67,6 +66,7 @@ void Connection::echo(int sockfd)
         {
             printf("Connection reset by peer...\n");
             deleteConnectionCallback(sockfd);
+            break;
         }
     }
 }

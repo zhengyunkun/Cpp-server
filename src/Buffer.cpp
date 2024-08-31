@@ -3,13 +3,9 @@
 #include <iostream>
 #include <stdio.h>
 
-Buffer::Buffer()
-{
-}
+Buffer::Buffer() {}
 
-Buffer::~Buffer()
-{
-}
+Buffer::~Buffer() {}
 
 void Buffer::append(const char* _str, int _size)
 {

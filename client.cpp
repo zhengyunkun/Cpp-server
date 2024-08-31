@@ -4,44 +4,55 @@
 #include <iostream>
 #include <unistd.h>
 #include "src/util.h"
+#include "src/Buffer.h"
+#include "src/Socket.h"
 
 int main()
 {
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    errIf(sockfd == -1, "socket create failed...");
+    Socket* sock = new Socket();
+    InetAddress* addr = new InetAddress("127.0.0.1", 8080);
+    sock->connect(addr);
 
-    struct sockaddr_in server_addr;
-    bzero(&server_addr, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server_addr.sin_port = htons(8080);
+    int sockfd = sock->getFd();
 
-    errIf(connect(sockfd, (sockaddr*)&server_addr, sizeof(server_addr)) == -1, "socket connect failed...");
+    Buffer* sendBuffer = new Buffer();
+    Buffer* readBuffer = new Buffer();
 
     while (true)
     {
-        char buf[1024];
-        bzero(&buf, sizeof(buf));
-        scanf("%s", buf);
-        ssize_t writeBytes = write(sockfd, buf, sizeof(buf));
+        sendBuffer->getline();
+        ssize_t writeBytes = write(sockfd, sendBuffer->c_str(), sendBuffer->size());
         if (writeBytes == -1)
         {
             printf("Socket already disconnected, cannot write anymore...");
             break;
         }
-        bzero(&buf, sizeof(buf));
-        ssize_t readBytes = read(sockfd, buf, sizeof(buf));
-        if (readBytes > 0)
+        int alreadyRead = 0;
+        char buf[1037];
+        while (true)
         {
-            printf("Message from server: %s\n", buf);
+            bzero(&buf, sizeof(buf));
+            ssize_t readBytes = read(sockfd, buf, sizeof(buf));
+            if (readBytes > 0)
+            {
+                readBuffer->append(buf, readBytes);
+                alreadyRead += readBytes;
+            }
+            else if (readBytes == 0)
+            {
+                printf("Server disconnected...\n");
+                exit(EXIT_FAILURE);
+            }
+            if (alreadyRead >= sendBuffer->size())
+            {
+                printf("Message from server: %s\n", buf);
+                break;
+            }
         }
-        else if (readBytes == -1)
-        {
-            close(sockfd);
-            errIf(true, "socket read failed...");
-        }
+        readBuffer->clear();
     }
 
-    close(sockfd);
+    delete addr;
+    delete sock;
     return 0;
 }

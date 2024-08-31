@@ -29,6 +29,7 @@ class ThreadPool
         -> std::future<typename std::result_of<F(Args...)>::type>;
 };
 
+//
 template<class F, class... Args>
 auto ThreadPool::add(F&& f, Args&&... args) -> std::future<typename std::result_of<F(Args...)>::type>
 {
